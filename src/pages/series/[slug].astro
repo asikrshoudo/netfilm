@@ -1,0 +1,417 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { series } from '../../data/content.js';
+
+export function getStaticPaths() {
+  return series.map(s => ({
+    params: { slug: s.id },
+    props: { show: s }
+  }));
+}
+
+const { show } = Astro.props;
+const firstEp = show.seasons?.[0]?.episodes?.[0];
+---
+
+<Layout title={show.title}>
+  <!-- Hero Banner -->
+  <div class="series-hero" style={show.thumb ? `--hero-bg: url(${show.thumb})` : ''}>
+    <div class="hero-bg"></div>
+    <div class="hero-gradient"></div>
+    <div class="hero-content container">
+      <a href="/series" class="back-link">← Series</a>
+      <h1 class="series-title">{show.title}</h1>
+      <div class="series-meta">
+        {show.year && <span>{show.year}</span>}
+        {show.rating && <span>⭐ {show.rating}</span>}
+        {show.seasons && <span>{show.seasons.length} Season{show.seasons.length > 1 ? 's' : ''}</span>}
+      </div>
+      {show.genre && (
+        <div class="series-genres">
+          {show.genre.map((g: string) => <span class="genre-pill">{g}</span>)}
+        </div>
+      )}
+      {show.description && <p class="series-desc">{show.description}</p>}
+      {firstEp && (
+        <button
+          class="btn-primary"
+          data-video={firstEp.video}
+          data-title={`${show.title} — S01E01`}
+          onclick="playEpisode(this)"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Play Episode 1
+        </button>
+      )}
+    </div>
+  </div>
+
+  <!-- Embedded Video Player (hidden by default) -->
+  <div class="ep-player-wrap" id="epPlayerWrap" style="display:none;">
+    <div class="ep-player-inner">
+      <div class="ep-player-header container">
+        <span class="ep-playing-title" id="epPlayingTitle"></span>
+        <button class="close-player-btn" onclick="closePlayer()">✕ Close</button>
+      </div>
+      <video id="epVideo" class="ep-video" controls preload="metadata"></video>
+    </div>
+  </div>
+
+  <!-- Seasons & Episodes -->
+  <div class="seasons-section container">
+    {show.seasons?.length > 0 ? (
+      show.seasons.map((season: any) => (
+        <div class="season-block">
+          <div class="season-header" onclick="toggleSeason(this)">
+            <div class="season-title">
+              <span class="season-num">Season {season.season}</span>
+              <span class="ep-count">{season.episodes.length} Episodes</span>
+            </div>
+            <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+            </svg>
+          </div>
+
+          <div class="episodes-list">
+            {season.episodes.map((ep: any) => (
+              <button
+                class="episode-card"
+                data-video={ep.video}
+                data-title={`${show.title} — S${String(season.season).padStart(2,'0')}E${String(ep.ep).padStart(2,'0')}: ${ep.title}`}
+                onclick="playEpisode(this)"
+              >
+                <div class="ep-number">E{ep.ep}</div>
+                <div class="ep-info">
+                  <div class="ep-title">{ep.title}</div>
+                  {ep.duration && <div class="ep-duration">{ep.duration}</div>}
+                </div>
+                <div class="ep-play">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))
+    ) : (
+      <div class="empty-state">
+        <p>No episodes found. Add episode data to <code>src/data/content.js</code></p>
+      </div>
+    )}
+  </div>
+
+  <div style="height: 80px;"></div>
+</Layout>
+
+<style>
+/* Hero */
+.series-hero {
+  position: relative;
+  min-height: 60vh;
+  display: flex;
+  align-items: flex-end;
+  padding-top: 64px;
+  padding-bottom: 50px;
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--hero-bg, var(--surface));
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.25) saturate(0.7);
+  transform: scale(1.05);
+}
+
+.hero-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--bg) 0%, transparent 60%),
+              linear-gradient(to right, rgba(6,6,15,0.9) 0%, transparent 70%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+}
+
+.back-link {
+  display: inline-block;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  transition: color var(--transition);
+}
+.back-link:hover { color: var(--text); }
+
+.series-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 4vw, 48px);
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 14px;
+}
+
+.series-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.series-meta span + span::before {
+  content: '·';
+  margin-right: 12px;
+}
+
+.series-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.genre-pill {
+  background: rgba(124,111,255,0.12);
+  border: 1px solid rgba(124,111,255,0.2);
+  color: var(--accent);
+  border-radius: 99px;
+  padding: 4px 14px;
+  font-size: 12px;
+}
+
+.series-desc {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.8;
+  max-width: 500px;
+  margin-bottom: 24px;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all var(--transition);
+  box-shadow: 0 4px 20px rgba(124,111,255,0.4);
+  cursor: pointer;
+}
+.btn-primary:hover {
+  background: #9088ff;
+  transform: translateY(-2px);
+}
+
+/* Episode player */
+.ep-player-wrap {
+  background: #000;
+  border-bottom: 1px solid var(--border);
+}
+
+.ep-player-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: rgba(10,10,20,0.8);
+}
+
+.ep-playing-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dim);
+}
+
+.close-player-btn {
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: color var(--transition);
+  cursor: pointer;
+}
+.close-player-btn:hover { color: var(--text); }
+
+.ep-video {
+  width: 100%;
+  max-height: 60vh;
+  background: #000;
+  display: block;
+}
+
+/* Seasons */
+.seasons-section {
+  padding: 40px 24px;
+}
+
+.season-block {
+  margin-bottom: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: var(--card);
+}
+
+.season-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition);
+}
+
+.season-header:hover { background: var(--card-hover); }
+
+.season-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.season-num {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.ep-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  background: rgba(255,255,255,0.06);
+  border-radius: 99px;
+  padding: 2px 10px;
+}
+
+.chevron {
+  transition: transform 0.3s;
+  color: var(--text-muted);
+}
+
+.season-block.open .chevron { transform: rotate(180deg); }
+
+.episodes-list {
+  display: none;
+  border-top: 1px solid var(--border);
+}
+
+.season-block.open .episodes-list { display: block; }
+
+.episode-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 14px 24px;
+  text-align: left;
+  transition: background var(--transition);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.episode-card:last-child { border-bottom: none; }
+.episode-card:hover { background: rgba(124,111,255,0.08); }
+.episode-card.active { background: rgba(124,111,255,0.12); }
+
+.ep-number {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 32px;
+}
+
+.ep-info { flex: 1; }
+
+.ep-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.ep-duration {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.ep-play {
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.episode-card:hover .ep-play { opacity: 1; }
+
+.empty-state {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+.empty-state code {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: var(--accent);
+}
+</style>
+
+<script>
+  // Season toggle
+  function toggleSeason(header: HTMLElement) {
+    const block = header.closest('.season-block');
+    block?.classList.toggle('open');
+  }
+
+  // Open first season by default
+  document.querySelector('.season-block')?.classList.add('open');
+
+  // Episode playback
+  function playEpisode(btn: HTMLElement) {
+    const videoSrc = btn.dataset.video;
+    const title = btn.dataset.title || '';
+
+    if (!videoSrc) {
+      alert('Video file not found. Add the file path in src/data/content.js');
+      return;
+    }
+
+    const playerWrap = document.getElementById('epPlayerWrap')!;
+    const epVideo = document.getElementById('epVideo') as HTMLVideoElement;
+    const epTitle = document.getElementById('epPlayingTitle')!;
+
+    epTitle.textContent = title;
+    epVideo.src = videoSrc;
+    playerWrap.style.display = 'block';
+    epVideo.play();
+    playerWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Mark active
+    document.querySelectorAll('.episode-card').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  function closePlayer() {
+    const playerWrap = document.getElementById('epPlayerWrap')!;
+    const epVideo = document.getElementById('epVideo') as HTMLVideoElement;
+    epVideo.pause();
+    playerWrap.style.display = 'none';
+    document.querySelectorAll('.episode-card').forEach(c => c.classList.remove('active'));
+  }
+
+  // Make functions global
+  (window as any).playEpisode = playEpisode;
+  (window as any).closePlayer = closePlayer;
+  (window as any).toggleSeason = toggleSeason;
+</script>

@@ -1,0 +1,374 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { music } from '../../data/content.js';
+---
+
+<Layout title="Music">
+  <div class="page-wrap">
+    <div class="container">
+      <div class="page-header">
+        <h1 class="page-title"> Music</h1>
+        <p class="page-sub">{music.length} artists · {music.reduce((a: number, m: any) => a + (m.songs?.length || 0), 0)} songs</p>
+      </div>
+
+      {music.length > 0 ? (
+        <div class="music-layout">
+          <!-- Artist sidebar -->
+          <div class="artists-sidebar">
+            <div class="sidebar-title">Artists</div>
+            {music.map((artist: any, idx: number) => (
+              <button
+                class={`artist-item ${idx === 0 ? 'active' : ''}`}
+                data-idx={idx}
+                onclick="selectArtist(this)"
+              >
+                <div
+                  class="artist-avatar"
+                  style={artist.thumb ? `background-image: url(${artist.thumb})` : ''}
+                >
+                  {!artist.thumb && <span>🎵</span>}
+                </div>
+                <div class="artist-detail">
+                  <div class="artist-name">{artist.artist}</div>
+                  <div class="artist-songs-count">{artist.songs.length} songs</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          <!-- Song list -->
+          <div class="songs-panel">
+            {music.map((artist: any, idx: number) => (
+              <div class="artist-songs" id={`artist-${idx}`} style={idx !== 0 ? 'display:none' : ''}>
+                <!-- Artist header -->
+                <div class="artist-header">
+                  <div
+                    class="artist-big-thumb"
+                    style={artist.thumb ? `background-image: url(${artist.thumb})` : ''}
+                  >
+                    {!artist.thumb && <span>🎵</span>}
+                  </div>
+                  <div class="artist-header-info">
+                    <div class="artist-header-name">{artist.artist}</div>
+                    <div class="artist-header-count">{artist.songs.length} songs</div>
+                    <button
+                      class="play-all-btn"
+                      data-artist={idx}
+                      onclick="playAll(this)"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      Play All
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Songs list -->
+                <div class="songs-list">
+                  {artist.songs.map((song: any, sIdx: number) => (
+                    <button
+                      class="song-row"
+                      data-artist={idx}
+                      data-song={sIdx}
+                      onclick="playSong(this)"
+                    >
+                      <div class="song-num">{sIdx + 1}</div>
+                      <div class="song-play-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                      </div>
+                      <div class="song-info">
+                        <div class="song-title">{song.title}</div>
+                      </div>
+                      <div class="song-duration">{song.duration || '—'}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div class="empty-state">
+          <div class="empty-icon">🎵</div>
+          <h2>No music yet</h2>
+          <p>Add music info to <code>src/data/content.js</code> and put audio files in <code>public/music/</code></p>
+        </div>
+      )}
+    </div>
+  </div>
+</Layout>
+
+<!-- Pass music data to JS -->
+<script define:vars={{ musicData: music }}>
+  const allMusic = musicData;
+
+  function selectArtist(btn) {
+    const idx = parseInt(btn.dataset.idx);
+
+    document.querySelectorAll('.artist-item').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    document.querySelectorAll('.artist-songs').forEach(p => p.style.display = 'none');
+    const panel = document.getElementById(`artist-${idx}`);
+    if (panel) panel.style.display = 'block';
+  }
+
+  function buildPlaylist(artistIdx) {
+    const artist = allMusic[artistIdx];
+    return artist.songs.map(s => ({
+      ...s,
+      artist: artist.artist,
+      thumb: artist.thumb
+    }));
+  }
+
+  function playSong(btn) {
+    const artistIdx = parseInt(btn.dataset.artist);
+    const songIdx = parseInt(btn.dataset.song);
+
+    const playlist = buildPlaylist(artistIdx);
+    const player = window.netfilmPlayer;
+    if (player) {
+      player.setPlaylist(playlist);
+      player.play(songIdx);
+    }
+
+    document.querySelectorAll('.song-row').forEach(r => r.classList.remove('playing'));
+    btn.classList.add('playing');
+  }
+
+  function playAll(btn) {
+    const artistIdx = parseInt(btn.dataset.artist);
+    const playlist = buildPlaylist(artistIdx);
+    const player = window.netfilmPlayer;
+    if (player) {
+      player.setPlaylist(playlist);
+      player.play(0);
+    }
+  }
+
+  window.selectArtist = selectArtist;
+  window.playSong = playSong;
+  window.playAll = playAll;
+</script>
+
+<style>
+.page-wrap { padding-top: 100px; padding-bottom: 100px; }
+
+.page-header { margin-bottom: 32px; }
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 6px;
+}
+
+.page-sub { color: var(--text-muted); font-size: 14px; }
+
+/* Layout */
+.music-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 24px;
+  min-height: 60vh;
+}
+
+/* Artists sidebar */
+.artists-sidebar {
+  border-right: 1px solid var(--border);
+  padding-right: 24px;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding-left: 12px;
+}
+
+.artist-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  transition: all var(--transition);
+  cursor: pointer;
+  text-align: left;
+  margin-bottom: 2px;
+}
+
+.artist-item:hover { background: rgba(255,255,255,0.05); }
+.artist-item.active { background: rgba(124,111,255,0.12); }
+
+.artist-avatar {
+  width: 42px; height: 42px;
+  border-radius: 10px;
+  background: var(--surface);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.artist-detail { overflow: hidden; }
+
+.artist-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.artist-songs-count { font-size: 12px; color: var(--text-muted); }
+
+/* Artist panel */
+.artist-header {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  padding: 0 0 32px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.artist-big-thumb {
+  width: 120px; height: 120px;
+  border-radius: 16px;
+  background: var(--surface);
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  flex-shrink: 0;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+.artist-header-name {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.artist-header-count {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.play-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 99px;
+  padding: 10px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition);
+  box-shadow: 0 4px 20px rgba(124,111,255,0.4);
+}
+.play-all-btn:hover { background: #9088ff; transform: translateY(-1px); }
+
+/* Songs */
+.song-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  text-align: left;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+
+.song-row:hover { background: rgba(255,255,255,0.05); }
+.song-row.playing { background: rgba(124,111,255,0.12); }
+.song-row.playing .song-title { color: var(--accent); }
+
+.song-num {
+  font-size: 13px;
+  color: var(--text-muted);
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.song-play-icon {
+  display: none;
+  color: var(--accent);
+}
+
+.song-row:hover .song-num { display: none; }
+.song-row:hover .song-play-icon { display: flex; }
+
+.song-info { flex: 1; min-width: 0; }
+
+.song-title {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-duration {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Empty */
+.empty-state { text-align: center; padding: 80px 0; }
+.empty-icon { font-size: 64px; margin-bottom: 20px; }
+.empty-state h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.empty-state p { color: var(--text-muted); line-height: 1.8; }
+.empty-state code {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .music-layout {
+    grid-template-columns: 1fr;
+  }
+  .artists-sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 20px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+  }
+  .sidebar-title { display: none; }
+  .artist-item { flex-shrink: 0; }
+  .artist-big-thumb { width: 80px; height: 80px; }
+  .artist-header-name { font-size: 22px; }
+}
+</style>

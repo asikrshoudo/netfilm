@@ -1,0 +1,741 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { movies } from '../../data/content.js';
+
+export function getStaticPaths() {
+  return movies.map(m => ({
+    params: { slug: m.id },
+    props: { movie: m }
+  }));
+}
+
+const { movie } = Astro.props;
+---
+
+<Layout title={movie.title}>
+  <div class="player-page">
+    <!-- Video Player -->
+    <div class="player-section">
+      <div class="player-wrap" id="playerWrap">
+        {movie.video ? (
+          <video
+            id="mainVideo"
+            class="main-video"
+            preload="metadata"
+            poster={movie.thumb}
+          >
+            <source src={movie.video} />
+            Your browser does not support video.
+          </video>
+        ) : (
+          <div class="no-video">
+            <span>🎬</span>
+            <p>Video file not found</p>
+            <small>Add the video to: <code>{`public/videos/movies/${movie.id}.mp4`}</code></small>
+          </div>
+        )}
+
+        <!-- Custom Controls Overlay -->
+        {movie.video && (
+          <div class="controls-overlay" id="controlsOverlay">
+            <!-- Top bar -->
+            <div class="ctrl-top">
+              <a href="/movies" class="back-btn">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M19 12H5M12 5l-7 7 7 7"/>
+                </svg>
+                Back
+              </a>
+              <div class="ctrl-title">{movie.title}</div>
+            </div>
+
+            <!-- Center play/pause tap zone -->
+            <div class="ctrl-center" id="centerTap">
+              <div class="center-icon" id="centerIcon"></div>
+            </div>
+
+            <!-- Bottom bar -->
+            <div class="ctrl-bottom">
+              <!-- Progress bar -->
+              <div class="progress-row">
+                <div class="seek-bar-wrap" id="seekBarWrap">
+                  <div class="seek-bar">
+                    <div class="seek-buffered" id="seekBuffered"></div>
+                    <div class="seek-fill" id="seekFill"></div>
+                    <div class="seek-thumb" id="seekThumb"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Control buttons -->
+              <div class="ctrl-row">
+                <div class="ctrl-left">
+                  <!-- Play/Pause -->
+                  <button class="ctrl-btn big" id="playPauseBtn" title="Play/Pause (Space)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" id="playPauseIcon">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  </button>
+
+                  <!-- Skip back 10s -->
+                  <button class="ctrl-btn" id="skipBackBtn" title="10 seconds back (←)">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+                    </svg>
+                    <span class="skip-label">10</span>
+                  </button>
+
+                  <!-- Skip forward 10s -->
+                  <button class="ctrl-btn" id="skipFwdBtn" title="10 seconds forward (→)">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M18 13c0 3.31-2.69 6-6 6s-6-2.69-6-6 2.69-6 6-6v4l5-5-5-5v4c-4.42 0-8 3.58-8 8s3.58 8 8 8 8-3.58 8-8h-2z"/>
+                    </svg>
+                    <span class="skip-label">10</span>
+                  </button>
+
+                  <!-- Volume -->
+                  <div class="vol-group">
+                    <button class="ctrl-btn" id="muteBtn" title="Mute (M)">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" id="volIcon">
+                        <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                      </svg>
+                    </button>
+                    <input type="range" id="volSlider" class="vol-range" min="0" max="1" step="0.05" value="1" />
+                  </div>
+
+                  <!-- Time display -->
+                  <div class="time-display">
+                    <span id="currentTime">0:00</span>
+                    <span class="time-sep">/</span>
+                    <span id="totalDuration">0:00</span>
+                  </div>
+                </div>
+
+                <div class="ctrl-right">
+                  <!-- Speed -->
+                  <div class="speed-wrap">
+                    <button class="ctrl-btn text-btn" id="speedBtn">1×</button>
+                    <div class="speed-menu" id="speedMenu">
+                      {[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map(s => (
+                        <button class={`speed-opt ${s === 1 ? 'active' : ''}`} data-speed={s}>{s}×</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <!-- Picture-in-Picture -->
+                  <button class="ctrl-btn" id="pipBtn" title="Picture in Picture">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 1.98 2 1.98h18c1.1 0 2-.88 2-1.98V5c0-1.1-.9-2-2-2zm0 16.01H3V4.98h18v14.03z"/>
+                    </svg>
+                  </button>
+
+                  <!-- Fullscreen -->
+                  <button class="ctrl-btn" id="fullscreenBtn" title="Fullscreen (F)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" id="fsIcon">
+                      <path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <!-- Movie Info -->
+    <div class="info-section container">
+      <div class="info-grid">
+        <div class="info-main">
+          <h1 class="info-title">{movie.title}</h1>
+          <div class="info-meta">
+            {movie.year && <span class="meta-chip">{movie.year}</span>}
+            {movie.duration && <span class="meta-chip">{movie.duration}</span>}
+            {movie.rating && <span class="meta-chip rating">⭐ {movie.rating}</span>}
+          </div>
+          {movie.genre && (
+            <div class="info-genres">
+              {movie.genre.map((g: string) => <span class="genre-pill">{g}</span>)}
+            </div>
+          )}
+          {movie.description && <p class="info-desc">{movie.description}</p>}
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+.player-page {
+  padding-top: 64px;
+  min-height: 100vh;
+}
+
+/* Player */
+.player-section {
+  background: #000;
+  position: relative;
+}
+
+.player-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  max-height: 80vh;
+  background: #000;
+  overflow: hidden;
+  cursor: none;
+}
+
+.player-wrap.show-cursor { cursor: default; }
+
+.main-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* No video */
+.no-video {
+  width: 100%; height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 16px;
+  color: var(--text-muted);
+  background: var(--surface);
+  aspect-ratio: 16/9;
+}
+.no-video span { font-size: 48px; }
+.no-video code {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+/* Controls overlay */
+.controls-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transition: opacity 0.3s;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.7) 0%,
+    transparent 20%,
+    transparent 60%,
+    rgba(0,0,0,0.9) 100%
+  );
+}
+
+.player-wrap.show-cursor .controls-overlay,
+.player-wrap:not(.playing) .controls-overlay {
+  opacity: 1;
+}
+
+/* Top bar */
+.ctrl-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+}
+
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255,255,255,0.8);
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.2s;
+}
+.back-btn:hover { color: #fff; }
+
+.ctrl-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+}
+
+/* Center tap zone */
+.ctrl-center {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.center-icon {
+  width: 70px; height: 70px;
+  background: rgba(124,111,255,0.8);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.3s;
+  pointer-events: none;
+}
+
+.center-icon.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Bottom controls */
+.ctrl-bottom {
+  padding: 0 20px 20px;
+}
+
+.progress-row {
+  margin-bottom: 12px;
+}
+
+.seek-bar-wrap {
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.seek-bar {
+  position: relative;
+  height: 4px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 99px;
+  overflow: visible;
+  transition: height 0.2s;
+}
+
+.seek-bar-wrap:hover .seek-bar { height: 6px; }
+
+.seek-buffered {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  background: rgba(255,255,255,0.3);
+  border-radius: 99px;
+  width: 0%;
+}
+
+.seek-fill {
+  position: absolute;
+  left: 0; top: 0;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 99px;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+.seek-thumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  width: 14px; height: 14px;
+  background: var(--accent);
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 0 8px rgba(124,111,255,0.6);
+}
+
+.seek-bar-wrap:hover .seek-thumb { transform: translate(-50%, -50%) scale(1); }
+
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ctrl-left, .ctrl-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  color: rgba(255,255,255,0.85);
+  transition: all 0.2s;
+  position: relative;
+}
+
+.ctrl-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+}
+
+.ctrl-btn.big { width: 46px; height: 46px; }
+
+.text-btn {
+  width: auto;
+  padding: 0 12px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Skip labels */
+.skip-label {
+  position: absolute;
+  bottom: 4px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+/* Volume */
+.vol-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vol-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 4px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+  transition: width 0.3s;
+  overflow: hidden;
+}
+
+.vol-group:hover .vol-range { width: 80px; }
+
+.vol-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+}
+
+/* Time */
+.time-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding: 0 8px;
+}
+
+.time-sep { opacity: 0.5; }
+
+/* Speed menu */
+.speed-wrap { position: relative; }
+
+.speed-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: rgba(15,15,30,0.95);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  display: none;
+  min-width: 80px;
+  backdrop-filter: blur(12px);
+}
+
+.speed-menu.open { display: block; }
+
+.speed-opt {
+  display: block;
+  width: 100%;
+  padding: 9px 16px;
+  font-size: 13px;
+  color: var(--text-dim);
+  text-align: center;
+  transition: all 0.15s;
+}
+
+.speed-opt:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+.speed-opt.active { color: var(--accent); font-weight: 600; }
+
+/* Info section */
+.info-section { padding: 40px 24px 80px; }
+
+.info-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 16px;
+}
+
+.info-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.meta-chip {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.meta-chip.rating { color: #ffc107; }
+
+.info-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.genre-pill {
+  background: rgba(124,111,255,0.12);
+  border: 1px solid rgba(124,111,255,0.2);
+  color: var(--accent);
+  border-radius: 99px;
+  padding: 4px 14px;
+  font-size: 13px;
+}
+
+.info-desc {
+  font-size: 15px;
+  color: var(--text-dim);
+  line-height: 1.8;
+  max-width: 600px;
+}
+
+@media (max-width: 768px) {
+  .player-wrap { aspect-ratio: 16/9; max-height: none; }
+  .ctrl-title { display: none; }
+  .vol-range { display: none; }
+  .info-title { font-size: 24px; }
+  .ctrl-btn.big { width: 40px; height: 40px; }
+}
+</style>
+
+<script>
+  const video = document.getElementById('mainVideo') as HTMLVideoElement;
+  if (!video) throw new Error('No video');
+
+  const playerWrap = document.getElementById('playerWrap')!;
+  const overlay = document.getElementById('controlsOverlay')!;
+  const playPauseBtn = document.getElementById('playPauseBtn')!;
+  const playPauseIcon = document.getElementById('playPauseIcon')!;
+  const centerIcon = document.getElementById('centerIcon')!;
+  const seekFill = document.getElementById('seekFill') as HTMLElement;
+  const seekThumb = document.getElementById('seekThumb') as HTMLElement;
+  const seekBuffered = document.getElementById('seekBuffered') as HTMLElement;
+  const seekBarWrap = document.getElementById('seekBarWrap')!;
+  const currentTimeEl = document.getElementById('currentTime')!;
+  const totalDurationEl = document.getElementById('totalDuration')!;
+  const muteBtn = document.getElementById('muteBtn')!;
+  const volIcon = document.getElementById('volIcon')!;
+  const volSlider = document.getElementById('volSlider') as HTMLInputElement;
+  const speedBtn = document.getElementById('speedBtn')!;
+  const speedMenu = document.getElementById('speedMenu')!;
+  const fullscreenBtn = document.getElementById('fullscreenBtn')!;
+  const fsIcon = document.getElementById('fsIcon')!;
+  const pipBtn = document.getElementById('pipBtn');
+  const skipBackBtn = document.getElementById('skipBackBtn')!;
+  const skipFwdBtn = document.getElementById('skipFwdBtn')!;
+
+  const playPath = '<path d="M8 5v14l11-7z"/>';
+  const pausePath = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+  const volHighPath = '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>';
+  const volMutePath = '<path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>';
+
+  const formatTime = (s: number) => {
+    if (isNaN(s)) return '0:00';
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = Math.floor(s % 60);
+    if (h > 0) return `${h}:${m.toString().padStart(2,'0')}:${sec.toString().padStart(2,'0')}`;
+    return `${m}:${sec.toString().padStart(2,'0')}`;
+  };
+
+  const showCenterAnim = (icon: string) => {
+    centerIcon.innerHTML = icon;
+    centerIcon.classList.add('show');
+    setTimeout(() => centerIcon.classList.remove('show'), 700);
+  };
+
+  // Play/Pause
+  const togglePlay = () => {
+    if (video.paused) {
+      video.play();
+      playerWrap.classList.add('playing');
+      playPauseIcon.innerHTML = pausePath;
+      showCenterAnim('<svg viewBox="0 0 24 24" fill="white" width="32" height="32"><path d="M8 5v14l11-7z"/></svg>');
+    } else {
+      video.pause();
+      playerWrap.classList.remove('playing');
+      playPauseIcon.innerHTML = playPath;
+      showCenterAnim('<svg viewBox="0 0 24 24" fill="white" width="32" height="32"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>');
+    }
+  };
+
+  playPauseBtn.addEventListener('click', togglePlay);
+
+  // Tap center zone to toggle play
+  document.getElementById('centerTap')!.addEventListener('click', togglePlay);
+
+  // Time update
+  video.addEventListener('timeupdate', () => {
+    if (!video.duration) return;
+    const pct = (video.currentTime / video.duration) * 100;
+    seekFill.style.width = pct + '%';
+    seekThumb.style.left = pct + '%';
+    currentTimeEl.textContent = formatTime(video.currentTime);
+  });
+
+  video.addEventListener('loadedmetadata', () => {
+    totalDurationEl.textContent = formatTime(video.duration);
+  });
+
+  // Buffered
+  video.addEventListener('progress', () => {
+    if (video.buffered.length) {
+      const pct = (video.buffered.end(video.buffered.length - 1) / video.duration) * 100;
+      seekBuffered.style.width = pct + '%';
+    }
+  });
+
+  // Seek
+  let isSeeking = false;
+  const seek = (e: MouseEvent | TouchEvent) => {
+    const rect = seekBarWrap.getBoundingClientRect();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    video.currentTime = pct * video.duration;
+  };
+
+  seekBarWrap.addEventListener('click', seek as EventListener);
+  seekBarWrap.addEventListener('mousedown', (e) => { isSeeking = true; seek(e); });
+  window.addEventListener('mousemove', (e) => { if (isSeeking) seek(e as MouseEvent); });
+  window.addEventListener('mouseup', () => { isSeeking = false; });
+
+  // Skip
+  skipBackBtn.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - 10); });
+  skipFwdBtn.addEventListener('click', () => { video.currentTime = Math.min(video.duration, video.currentTime + 10); });
+
+  // Volume
+  volSlider.addEventListener('input', () => {
+    video.volume = parseFloat(volSlider.value);
+    video.muted = video.volume === 0;
+    volIcon.innerHTML = video.muted ? volMutePath : volHighPath;
+  });
+
+  muteBtn.addEventListener('click', () => {
+    video.muted = !video.muted;
+    volIcon.innerHTML = video.muted ? volMutePath : volHighPath;
+    volSlider.value = video.muted ? '0' : String(video.volume);
+  });
+
+  // Speed
+  speedBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    speedMenu.classList.toggle('open');
+  });
+
+  document.querySelectorAll('.speed-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = parseFloat((btn as HTMLElement).dataset.speed!);
+      video.playbackRate = s;
+      speedBtn.textContent = `${s}×`;
+      document.querySelectorAll('.speed-opt').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      speedMenu.classList.remove('open');
+    });
+  });
+
+  document.addEventListener('click', () => speedMenu.classList.remove('open'));
+
+  // Fullscreen
+  fullscreenBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      playerWrap.requestFullscreen?.();
+    } else {
+      document.exitFullscreen?.();
+    }
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    const isFs = !!document.fullscreenElement;
+    fsIcon.innerHTML = isFs
+      ? '<path d="M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z"/>'
+      : '<path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/>';
+  });
+
+  // PiP
+  pipBtn?.addEventListener('click', async () => {
+    if (document.pictureInPictureElement) {
+      await document.exitPictureInPicture();
+    } else {
+      await video.requestPictureInPicture?.();
+    }
+  });
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement) return;
+    switch(e.key) {
+      case ' ':
+      case 'k':
+        e.preventDefault();
+        togglePlay();
+        break;
+      case 'ArrowLeft':
+        video.currentTime = Math.max(0, video.currentTime - 10);
+        break;
+      case 'ArrowRight':
+        video.currentTime = Math.min(video.duration, video.currentTime + 10);
+        break;
+      case 'ArrowUp':
+        video.volume = Math.min(1, video.volume + 0.1);
+        volSlider.value = String(video.volume);
+        break;
+      case 'ArrowDown':
+        video.volume = Math.max(0, video.volume - 0.1);
+        volSlider.value = String(video.volume);
+        break;
+      case 'm':
+        muteBtn.click();
+        break;
+      case 'f':
+        fullscreenBtn.click();
+        break;
+    }
+  });
+
+  // Auto-hide controls
+  let hideTimer: ReturnType<typeof setTimeout>;
+  const showControls = () => {
+    playerWrap.classList.add('show-cursor');
+    clearTimeout(hideTimer);
+    if (playerWrap.classList.contains('playing')) {
+      hideTimer = setTimeout(() => playerWrap.classList.remove('show-cursor'), 3000);
+    }
+  };
+
+  playerWrap.addEventListener('mousemove', showControls);
+  playerWrap.addEventListener('touchstart', showControls);
+</script>

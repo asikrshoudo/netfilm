@@ -1,0 +1,339 @@
+---
+import Navbar from '../components/Navbar.astro';
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const { title = 'NetFilm', description = 'Your personal home media server' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <title>{title} — NetFilm</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Preconnect fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  </head>
+  <body>
+    <Navbar />
+    <main id="main" class="page-enter">
+      <slot />
+    </main>
+
+    <!-- Global Music Player (bottom bar) -->
+    <div id="musicPlayerBar" class="music-bar hidden">
+      <div class="music-bar-inner container">
+        <div class="music-info">
+          <div class="music-thumb" id="mpThumb"></div>
+          <div class="music-meta">
+            <div class="music-title" id="mpTitle">—</div>
+            <div class="music-artist" id="mpArtist">—</div>
+          </div>
+        </div>
+
+        <div class="music-controls">
+          <button class="mp-btn" id="mpPrev" title="Previous">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/>
+            </svg>
+          </button>
+          <button class="mp-btn play-btn" id="mpPlay" title="Play/Pause">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" id="mpPlayIcon">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+          </button>
+          <button class="mp-btn" id="mpNext" title="Next">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="music-progress-wrap">
+          <span class="time" id="mpCurrentTime">0:00</span>
+          <div class="progress-bar" id="mpProgressBar">
+            <div class="progress-fill" id="mpProgressFill"></div>
+          </div>
+          <span class="time" id="mpDuration">0:00</span>
+        </div>
+
+        <div class="music-vol">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+          </svg>
+          <input type="range" id="mpVolume" min="0" max="1" step="0.02" value="1" class="vol-slider" />
+        </div>
+
+        <button class="mp-btn mp-close" id="mpClose" title="Close">✕</button>
+      </div>
+    </div>
+
+    <audio id="globalAudio" preload="metadata"></audio>
+  </body>
+</html>
+
+<style>
+/* Music player bottom bar */
+.music-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: rgba(10, 10, 20, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid var(--border);
+  z-index: 200;
+  padding: 10px 0;
+  transform: translateY(100%);
+  transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+}
+
+.music-bar.visible {
+  transform: translateY(0);
+}
+
+.music-bar.hidden { display: none; }
+
+.music-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.music-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+  max-width: 220px;
+}
+
+.music-thumb {
+  width: 44px; height: 44px;
+  border-radius: 8px;
+  background: var(--card);
+  flex-shrink: 0;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+}
+
+.music-meta { overflow: hidden; }
+.music-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.music-artist { font-size: 12px; color: var(--text-muted); }
+
+.music-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.mp-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  color: var(--text-dim);
+  transition: all var(--transition);
+}
+
+.mp-btn:hover { color: var(--text); background: rgba(255,255,255,0.08); }
+
+.play-btn {
+  width: 42px; height: 42px;
+  background: var(--accent);
+  color: #fff;
+}
+.play-btn:hover { background: #9088ff; }
+
+.music-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 99px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent);
+  border-radius: 99px;
+  transition: width 0.2s linear;
+}
+
+.time {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.music-vol {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.vol-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 80px;
+  height: 4px;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.15);
+  outline: none;
+  cursor: pointer;
+}
+.vol-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.mp-close {
+  color: var(--text-muted);
+  font-size: 14px;
+  width: 30px; height: 30px;
+}
+
+@media (max-width: 768px) {
+  .music-vol { display: none; }
+  .music-info { min-width: 0; max-width: 140px; }
+  .music-progress-wrap { flex: 1; }
+  .time { display: none; }
+}
+</style>
+
+<script>
+  // =============================================
+  // Global Music Player Logic
+  // =============================================
+  const audio = document.getElementById('globalAudio') as HTMLAudioElement;
+  const bar = document.getElementById('musicPlayerBar');
+  const mpPlay = document.getElementById('mpPlay');
+  const mpPlayIcon = document.getElementById('mpPlayIcon');
+  const mpPrev = document.getElementById('mpPrev');
+  const mpNext = document.getElementById('mpNext');
+  const mpTitle = document.getElementById('mpTitle');
+  const mpArtist = document.getElementById('mpArtist');
+  const mpThumb = document.getElementById('mpThumb');
+  const mpProgressFill = document.getElementById('mpProgressFill');
+  const mpProgressBar = document.getElementById('mpProgressBar');
+  const mpCurrentTime = document.getElementById('mpCurrentTime');
+  const mpDuration = document.getElementById('mpDuration');
+  const mpVolume = document.getElementById('mpVolume') as HTMLInputElement;
+  const mpClose = document.getElementById('mpClose');
+
+  let playlist: any[] = [];
+  let currentIndex = 0;
+  let isPlaying = false;
+
+  const formatTime = (s: number) => {
+    if (isNaN(s)) return '0:00';
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const playIco = '<path d="M8 5v14l11-7z"/>';
+  const pauseIco = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
+
+  const updateUI = () => {
+    const song = playlist[currentIndex];
+    if (!song) return;
+    if (mpTitle) mpTitle.textContent = song.title;
+    if (mpArtist) mpArtist.textContent = song.artist || '';
+    if (mpThumb) (mpThumb as HTMLElement).style.backgroundImage = song.thumb ? `url(${song.thumb})` : '';
+    if (mpPlayIcon) mpPlayIcon.innerHTML = isPlaying ? pauseIco : playIco;
+  };
+
+  const play = (index = currentIndex) => {
+    const song = playlist[index];
+    if (!song) return;
+    currentIndex = index;
+    audio.src = song.file;
+    audio.play();
+    isPlaying = true;
+    bar?.classList.remove('hidden');
+    setTimeout(() => bar?.classList.add('visible'), 10);
+    updateUI();
+  };
+
+  mpPlay?.addEventListener('click', () => {
+    if (isPlaying) {
+      audio.pause();
+      isPlaying = false;
+    } else {
+      audio.play();
+      isPlaying = true;
+    }
+    if (mpPlayIcon) mpPlayIcon.innerHTML = isPlaying ? pauseIco : playIco;
+  });
+
+  mpNext?.addEventListener('click', () => {
+    play((currentIndex + 1) % playlist.length);
+  });
+
+  mpPrev?.addEventListener('click', () => {
+    play((currentIndex - 1 + playlist.length) % playlist.length);
+  });
+
+  audio.addEventListener('timeupdate', () => {
+    if (!audio.duration) return;
+    const pct = (audio.currentTime / audio.duration) * 100;
+    if (mpProgressFill) (mpProgressFill as HTMLElement).style.width = pct + '%';
+    if (mpCurrentTime) mpCurrentTime.textContent = formatTime(audio.currentTime);
+    if (mpDuration) mpDuration.textContent = formatTime(audio.duration);
+  });
+
+  mpProgressBar?.addEventListener('click', (e) => {
+    const rect = mpProgressBar.getBoundingClientRect();
+    const pct = (e.clientX - rect.left) / rect.width;
+    audio.currentTime = pct * audio.duration;
+  });
+
+  mpVolume?.addEventListener('input', () => {
+    audio.volume = parseFloat(mpVolume.value);
+  });
+
+  audio.addEventListener('ended', () => {
+    play((currentIndex + 1) % playlist.length);
+  });
+
+  mpClose?.addEventListener('click', () => {
+    audio.pause();
+    bar?.classList.remove('visible');
+    setTimeout(() => bar?.classList.add('hidden'), 400);
+    isPlaying = false;
+  });
+
+  // Expose globally so music page can call it
+  (window as any).netfilmPlayer = { play, setPlaylist: (list: any[]) => { playlist = list; } };
+</script>

@@ -1,0 +1,157 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import ContentCard from '../../components/ContentCard.astro';
+import { movies, genres } from '../../data/content.js';
+---
+
+<Layout title="Movies">
+  <div class="page-wrap">
+    <div class="container">
+      <!-- Header -->
+      <div class="page-header">
+        <h1 class="page-title"> Movies</h1>
+        <p class="page-sub">{movies.length} movies in your library</p>
+      </div>
+
+      <!-- Filter bar -->
+      <div class="filter-bar">
+        <button class="filter-btn active" data-genre="all">All</button>
+        {genres.map(g => (
+          <button class="filter-btn" data-genre={g}>{g}</button>
+        ))}
+      </div>
+
+      <!-- Grid -->
+      {movies.length > 0 ? (
+        <div class="movies-grid" id="moviesGrid">
+          {movies.map(m => (
+            <div class="card-wrap" data-genre={m.genre?.join(',')}>
+              <ContentCard
+                id={m.id}
+                title={m.title}
+                thumb={m.thumb}
+                year={m.year}
+                genre={m.genre}
+                rating={m.rating}
+                duration={m.duration}
+                type="movie"
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div class="empty-state">
+          <div class="empty-icon">🎬</div>
+          <h2>No movies yet</h2>
+          <p>Add movie info to <code>src/data/content.js</code> and put video files in <code>public/videos/movies/</code></p>
+        </div>
+      )}
+    </div>
+  </div>
+</Layout>
+
+<style>
+.page-wrap { padding-top: 100px; padding-bottom: 80px; }
+
+.page-header { margin-bottom: 32px; }
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 6px;
+}
+
+.page-sub { color: var(--text-muted); font-size: 14px; }
+
+/* Filter */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-btn {
+  padding: 8px 18px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition: all var(--transition);
+}
+
+.filter-btn:hover {
+  color: var(--text);
+  border-color: rgba(255,255,255,0.15);
+}
+
+.filter-btn.active {
+  background: rgba(124,111,255,0.15);
+  color: var(--accent);
+  border-color: rgba(124,111,255,0.4);
+}
+
+/* Grid */
+.movies-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 20px;
+}
+
+.card-wrap { transition: opacity var(--transition), transform var(--transition); }
+.card-wrap.hidden { display: none; }
+
+/* Empty */
+.empty-state {
+  text-align: center;
+  padding: 80px 0;
+}
+.empty-icon { font-size: 64px; margin-bottom: 20px; }
+.empty-state h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.empty-state p { color: var(--text-muted); line-height: 1.8; }
+.empty-state code {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .movies-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+}
+</style>
+
+<script>
+  const filterBtns = document.querySelectorAll('.filter-btn');
+  const cards = document.querySelectorAll('.card-wrap');
+
+  filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      filterBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      const genre = (btn as HTMLElement).dataset.genre;
+      cards.forEach(card => {
+        const cardGenres = (card as HTMLElement).dataset.genre || '';
+        if (genre === 'all' || cardGenres.includes(genre!)) {
+          card.classList.remove('hidden');
+        } else {
+          card.classList.add('hidden');
+        }
+      });
+    });
+  });
+</script>
